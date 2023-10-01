@@ -226,7 +226,7 @@ def castAdd (m : Nat) (x : Permutation n) : Permutation (n+m) where
 The function currently depends on `Classical.choice` since `Array.getElem_append_let` and `Array.getElem_map` do.
 :::
 -/
-theorem get_castAdd_left (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} (h : i < n) : (x.castAdd m)[i] = x[i].castAdd m := by
+theorem get_castAdd_lt (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} (h : i < n) : (x.castAdd m)[i] = x[i].castAdd m := by
   unfold castAdd GetElem.getElem
   simp only [instGetElemPermutationNatFinLtInstLTNat]
   have : i < x.val.size := x.size_eq.symm ▸ h
@@ -238,7 +238,7 @@ theorem get_castAdd_left (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m
 The function currently depends on `Classical.choice` since `Array.getElem_append_right` and `Array.getElem_ofFn` do.
 :::
 -/
-theorem get_castAdd_right (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} (h : i ≥ n) : (x.castAdd m)[i] = ⟨i,hi⟩ := by
+theorem get_castAdd_ge (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} (h : i ≥ n) : (x.castAdd m)[i] = ⟨i,hi⟩ := by
   unfold castAdd GetElem.getElem
   simp only [instGetElemPermutationNatFinLtInstLTNat]
   have : i ≥ x.val.size := x.size_eq.symm ▸ h
@@ -250,14 +250,14 @@ theorem get_castAdd_right (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + 
 
 /--
 :::note warn
-The function currently depends on `Classical.choice` since `Permutation.get_castAdd_left` and `Permutation.get_castAdd_right` do.
+The function currently depends on `Classical.choice` since `Permutation.get_castAdd_lt` and `Permutation.get_castAdd_ge` do.
 :::
 -/
 theorem get_castAdd_ite (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} : (x.castAdd m)[i] = if h : i < n then x[i].castAdd m else ⟨i,hi⟩ := by
   if h : i < n then
-    rewrite [dif_pos h]; exact x.get_castAdd_left m i h
+    rewrite [dif_pos h]; exact x.get_castAdd_lt m i h
   else
-    rewrite [dif_neg h]; exact x.get_castAdd_right m i (Nat.le_of_not_lt h)
+    rewrite [dif_neg h]; exact x.get_castAdd_ge m i (Nat.le_of_not_lt h)
 
 
 /-! ### The Group structure on `Permutation n` -/
