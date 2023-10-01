@@ -19,12 +19,19 @@ In this case, each permutation `f` on `Fin n` is represented by the array of its
 Conversely, an array `x : Array (Fin n)` represents a permutation provided `x.size = n` and `x.Nodup`.
 This is why we define `Permutation n` as a structure type consisting of `Array (Fin n)` together with these properties.
 
-We show that `Permutation n` forms a group and provide several special permutations.
+We show that `Permutation n` forms a group and provide several special permutations, namely the ***transposition*** and the ***cyclic permutation***.
 
 ## Main declarations
 
 * `Permutation`: the structure type representig permutations on `Fin n`.
 * `Permutation.id` / `Permutation.comp` / `Permutation.inv`: the group structure on `Permutation n`.
+* `Permutation.transpos`: the transposition
+* `Permutation.cyclic`: the cyclic permutation
+
+## TODO
+
+* Write and prove the theorem that specifies `Permutation.cyclic`.
+
 -/
 
 set_option autoImplicit false
@@ -65,7 +72,7 @@ theorem ext (x y : Permutation n) (h : ∀ (i : Nat) (hi : i < n), x[i] = y[i]) 
       h i (x.size_eq ▸ hi)
 
 theorem get_inj (x : Permutation n) (i j : Nat) {hi : i < n} {hj : j < n} (h : x[i] = x[j]) : i = j :=
-  x.nodup.get_inj i j <| h
+  x.nodup.get_inj (hi:=x.size_eq.symm ▸ hi) (hj:=x.size_eq.symm ▸ hj) <| h
 
 theorem get_inj' (x : Permutation n) (i j : Fin n) (h : x[i.1] = x[j.1]) : i = j :=
   Fin.eq_of_val_eq <| x.get_inj _ _ h
@@ -225,6 +232,96 @@ theorem mul_inv (x : Permutation n) : x * x.inv = 1 :=
     simp only [toFun_mul, inv, toFun_ofFn, toFun_one]
     apply funext; intro i; dsimp
     exact Fin.invOfInj_right ..
+
+theorem mul_left_cancel {x y z : Permutation n} (h : x * y = x * z) : y = z := by
+  have := congrArg (x.inv * ·) h
+  conv at this =>
+    dsimp; simp only [← mul_assoc, inv_mul, one_mul]
+  exact this
+
+theorem mul_right_cancel {x y z : Permutation n} (h : x * z = y * z) : x = y := by
+  have := congrArg (· * z.inv) h
+  conv at this =>
+    dsimp; simp only [mul_assoc, mul_inv, mul_one]
+  exact this
+
+theorem eq_inv_of_mul_eq_left (x y : Permutation n) (h : x * y = 1) : y = x.inv := by
+  have := congrArg (x.inv * ·) h
+  conv at this =>
+    dsimp; rewrite [← mul_assoc, inv_mul, one_mul, mul_one]
+  exact this
+
+theorem eq_inv_of_mul_eq_right (x y : Permutation n) (h : x * y = 1) : x = y.inv := by
+  have := congrArg (· * y.inv) h
+  conv at this =>
+    dsimp; rewrite [mul_assoc, mul_inv, one_mul, mul_one]
+  exact this
+
+
+/-! ### Transpositions -/
+
+/-- `Permutation.swap x i j` swaps the images of `i` and `j` of a permutation `x`. -/
+@[inline]
+def swap (x : Permutation n) (i j : Fin n) : Permutation n where
+  val := x.val.swap (i.cast x.size_eq.symm) (j.cast x.size_eq.symm)
+  size_eq := (x.val.size_swap _ _).trans x.size_eq
+  nodup := x.val.nodup_swap _ _ x.nodup
+
+theorem get_swap (x : Permutation n) (i j : Fin n) (k : Nat) {hk : k < n} : (x.swap i j)[k] = if j.1 = k then x[i.1] else if i.1 = k then x[j.1] else x[k] :=
+  show (x.val.swap _ _)[k]'_ = _ by
+    simp only [Array.getElem_swap, Fin.cast]; rfl
+
+theorem swap_swap_same (x :Permutation n) (i j : Fin n) : (x.swap i j).swap i j = x :=
+  ext _ _ fun k hk => by
+    simp only [get_swap, if_pos]
+    apply dite (j.1 = k) <;> apply dite (i.1 = k) <;> intro hik hjk
+    all_goals simp only [hik, hjk, if_pos, if_neg]
+    rw [if_neg (Ne.symm hik)]
+
+/-- The transposition; i.e. `Permutation.transpos i j` is the permutation which swaps `i` and `j` and leaves the others. -/
+@[inline]
+def transpos (i j : Fin n) : Permutation n :=
+  swap 1 i j
+
+theorem get_transpos (i j : Fin n) (k : Nat) {hk : k < n} : (transpos i j)[k] = if j.1 = k then i else if i.1 = k then j else ⟨k,hk⟩ := by
+  simp only [transpos, get_swap, get_one]
+
+theorem mul_transpose_eq_swap (x : Permutation n) (i j : Fin n) : x * (transpos i j) = x.swap i j :=
+  ext _ _ fun k hk => by
+    simp only [get_mul, get_transpos, get_swap]
+    if hjk : j.1 = k then
+      cases hjk; simp only [if_pos]
+    else if hik : i.1 = k then
+      cases hik; simp only [if_neg hjk, if_pos]
+    else
+      simp only [if_neg hjk, if_neg hik]
+
+/-- The transposition is of order 2. -/
+@[simp]
+theorem transpos_mul_transpos_same (i j : Fin n) : transpos i j * transpos i j = 1 := by
+  rewrite [mul_transpose_eq_swap]; dsimp [transpos]
+  exact swap_swap_same 1 i j
+
+@[simp]
+theorem inv_transpos (i j : Fin n) : (transpos i j).inv = transpos i j :=
+  Eq.symm <| eq_inv_of_mul_eq_left _ _ <| transpos_mul_transpos_same i j
+
+
+/-! ### Cyclic permutation -/
+
+/--
+Construct a cyclic permutation;
+i.e. Given `l : List (Fin n)`, `Permutation.cyclic l` is the permutation on `Fin n` such that it sends `l[i] ↦ l[i+1]` for `i < l.length-1` and `l[l.length-1] ↦ l[0]` and leaves the elements outside of `l`.
+
+:::note warn
+Although the function does not require `l.Nodup`, the result may be meaningless otherwise.
+:::
+-/
+@[inline]
+def cyclic (l : List (Fin n)) : Permutation n :=
+  match l with
+  | [] => 1
+  | (i :: l) => l.foldr (fun j x => x.swap i j) 1
 
 end Permutation
 
