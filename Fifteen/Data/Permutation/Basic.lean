@@ -174,6 +174,7 @@ The inverse permutation.
 
 :::note warn
 The function currently depends on `Classical.choice` since `Array.nodup_ofFn` does.
+:::
 -/
 @[inline]
 def inv (x : Permutation n) : Permutation n :=
@@ -181,6 +182,82 @@ def inv (x : Permutation n) : Permutation n :=
     have := congrArg x.toFun h
     simp only [Fin.invOfInj_right] at this
     exact this
+
+/--
+`Permutation.castAdd x` embeds the permutation `x : Permutation n` on `Fin n` into one on `Fin (n+m)`.
+
+:::note warn
+The function currently depends on `Classical.choice` since a lot of stuff do.
+:::
+-/
+@[inline]
+def castAdd (m : Nat) (x : Permutation n) : Permutation (n+m) where
+  val :=
+    x.val.map (Fin.castAdd (m:=m))
+    ++ Array.ofFn fun (i : Fin m) => (i.addNat n).cast (Nat.add_comm m n)
+  size_eq := by
+    rw [Array.size_append, Array.size_map, x.size_eq, Array.size_ofFn]
+  nodup := by
+    refine Array.nodup_append ?_ ?_ ?_
+    . apply Array.nodup_map _ _ x.nodup
+      intro i j h
+      cases i; cases j; cases h; rfl
+    . apply Array.nodup_ofFn
+      intro i j h
+      cases i; cases j
+      have h := congrArg Fin.val h
+      dsimp at h
+      cases Nat.add_right_cancel h
+      rfl
+    . intro i j hi hj
+      rewrite [Array.getElem_map, Array.getElem_ofFn]
+      intro h
+      have h := congrArg Fin.val h
+      conv at hi => simp only [Array.size_map, x.size_eq]
+      conv at h =>
+        dsimp [Fin.castAdd]; change x[i]'hi = j+n
+      have := calc
+        x[i].1 < n := x[i].2
+        _      ≤ j+n := Nat.le_add_left n j
+      exact (Nat.lt_irrefl x[i].val) (h.symm ▸ this)
+
+/--
+:::note warn
+The function currently depends on `Classical.choice` since `Array.getElem_append_let` and `Array.getElem_map` do.
+:::
+-/
+theorem get_castAdd_left (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} (h : i < n) : (x.castAdd m)[i] = x[i].castAdd m := by
+  unfold castAdd GetElem.getElem
+  simp only [instGetElemPermutationNatFinLtInstLTNat]
+  have : i < x.val.size := x.size_eq.symm ▸ h
+  rewrite [Array.getElem_append_left _ _ ((Array.size_map _ _).symm ▸ this)]
+  rw [Array.getElem_map]
+
+/--
+:::note warn
+The function currently depends on `Classical.choice` since `Array.getElem_append_right` and `Array.getElem_ofFn` do.
+:::
+-/
+theorem get_castAdd_right (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} (h : i ≥ n) : (x.castAdd m)[i] = ⟨i,hi⟩ := by
+  unfold castAdd GetElem.getElem
+  simp only [instGetElemPermutationNatFinLtInstLTNat]
+  have : i ≥ x.val.size := x.size_eq.symm ▸ h
+  rewrite [Array.getElem_append_right _ _ ((Array.size_map _ _).symm ▸ this)]
+  rewrite [Array.getElem_ofFn]
+  apply Fin.eq_of_val_eq
+  simp only [Array.size_map, Fin.addNat_mk, Fin.cast_mk, x.size_eq]
+  exact Nat.sub_add_cancel h
+
+/--
+:::note warn
+The function currently depends on `Classical.choice` since `Permutation.get_castAdd_left` and `Permutation.get_castAdd_right` do.
+:::
+-/
+theorem get_castAdd_ite (m : Nat) (x : Permutation n) (i : Nat) {hi : i < n + m} : (x.castAdd m)[i] = if h : i < n then x[i].castAdd m else ⟨i,hi⟩ := by
+  if h : i < n then
+    rewrite [dif_pos h]; exact x.get_castAdd_left m i h
+  else
+    rewrite [dif_neg h]; exact x.get_castAdd_right m i (Nat.le_of_not_lt h)
 
 
 /-! ### The Group structure on `Permutation n` -/
