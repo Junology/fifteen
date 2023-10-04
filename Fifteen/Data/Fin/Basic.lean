@@ -76,6 +76,15 @@ theorem list_length_le_of_nodup {l : List (Fin n)} (nodup : l.Nodup) : l.length 
       refine trans (IH ?_) (n.le_succ)
       exact List.nodup_of_nodup_map nodup
 
+
+/-! ### Declarations about `Fin.invOfInj` -/
+
+/--
+`OrbitChain f i [i₁, …, iₙ] j` stands for
+* `i = f i₁`;
+* `iₖ = f iₖ₊₁` for `k = 1, …, n-1`;
+* `iₙ = f j`.
+-/
 inductive OrbitChain (f : Fin n → Fin n) : Fin n → List (Fin n) → Fin n → Prop where
 | single (i : Fin n) : OrbitChain f i [] i
 | cons {i j : Fin n} {l : List (Fin n)} : f i ∉ (i :: l) → OrbitChain f i l j → OrbitChain f (f i) (i :: l) j
