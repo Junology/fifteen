@@ -29,23 +29,25 @@ theorem length_pmap {p : α → Prop} (f : (a : α) → p a → β) (l : List α
   | nil => rfl
   | cons a l IH => dsimp [pmap]; rw [IH]
 
-theorem Nodup.length_le_of_subset [DecidableEq α] {l l₁ : List α} (nodup : l.Nodup) (h : Subset l l₁) : l.length ≤ l₁.length := by
+theorem Nodup.length_le_of_subset {l l₁ : List α} (nodup : l.Nodup) (h : Subset l l₁) : l.length ≤ l₁.length := by
   induction l generalizing l₁ with
   | nil => exact l₁.length.zero_le
   | cons a l IH =>
-    have .cons nodup_head nodup_tail := nodup
-    have ha : a ∈ l₁ := h (mem_cons_self a l)
-    have hsub : l ⊆ l₁.erase a := fun a' ha' => by
-      apply (mem_erase_of_ne (nodup_head _ ha').symm).mpr
-      exact h <| mem_cons.mpr <| Or.inr ha'
-    have : l₁.length = (l₁.erase a).length + 1 := by
-      rewrite [length_erase_of_mem ha]
-      refine (Nat.succ_pred ?_).symm
-      intro h; cases eq_nil_of_length_eq_zero h
-      cases ha
-    rewrite [this]
-    apply Nat.succ_le_succ
-    exact IH nodup_tail hsub
+    have .cons nodup_head (nodup_tail : l.Nodup) := nodup
+    let ⟨ha,hl⟩ := cons_subset.mp h
+    clear nodup h
+    have ⟨l₁', l₁'', hl₁⟩ := mem_iff_append.mp ha
+    cases hl₁; clear ha
+    have : l ⊆ l₁' ++ l₁'' := fun b hb => 
+      match mem_append.mp (hl hb) with
+      | .inl hb => mem_append.mpr <| Or.inl hb
+      | .inr hb => mem_append.mpr <| Or.inr <|
+        match hb with
+        | .head _ => absurd rfl <| nodup_head b ‹b ∈ l›
+        | .tail _ h => h
+    specialize IH nodup_tail this
+    simp only [length_append, length_cons] at IH ⊢
+    exact Nat.succ_le_succ IH
 
 
 /-! ### Declarations about `List.mem` or `Membership.mem` -/
@@ -311,5 +313,24 @@ theorem countP_image_le_length [DecidableEq β] {la : List α} {lb : List β} (h
     cases of_decide_eq_true hb₁
     cases of_decide_eq_true hb₂
     rfl
+
+theorem countP_mono_right [DecidableEq α] {p : α → Bool} {l l' : List α} (hsub : l ⊆ l') (nodup : l.Nodup) : l.countP p ≤ l'.countP p := by
+  induction l generalizing l' with
+  | nil => exact Nat.zero_le _
+  | cons a l IH =>
+    let .cons nodup_head (nodup_tail : l.Nodup) := nodup
+    simp only [countP_cons]
+    cases hpa : p a <;> simp only [if_pos, if_neg, Nat.add_zero]
+    . refine IH (subset_of_cons_subset hsub) nodup_tail
+    let l'' := l'.erase a
+    have : l ⊆ l'' := fun b h => by
+      simp only [List.mem_erase_of_ne (nodup_head b h).symm]
+      specialize @hsub b
+      simp only [List.mem_cons] at hsub
+      exact hsub <| Or.inr h
+    specialize IH this nodup_tail
+    refine trans (s:=Eq) (Nat.succ_le_succ IH) ?_
+    refine Eq.symm <| countP_erase_true ?_ hpa
+    exact (cons_subset.mp hsub).1
 
 end List
