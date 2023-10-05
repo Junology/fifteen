@@ -49,6 +49,17 @@ theorem dfold_induction
   | 0 => zero
   | n+1 => succ n _ <| dfold_induction f n init zero succ
 
+theorem dfold_hom
+  {α : Nat → Sort u} {β : Nat → Sort v}
+  (f : (n : Nat) → α n → β n)
+  (g₁ : (n : Nat) → α n → α (n+1)) (g₂ : (n : Nat) → β n → β (n+1))
+  (n : Nat) (init : α 0)
+  (H : ∀ n a, g₂ n (f n a) = f (n+1) (g₁ n a))
+  : dfold g₂ n (f 0 init) = f n (dfold g₁ n init) := by
+  induction n with
+  | zero => rfl
+  | succ n IH => dsimp [dfold]; rw [IH, H]
+
 /--
 Similar to `Nat.fold`, but this version takes a function of type `Fin n → α → α` instead of `Nat → α → α`.
 -/
@@ -71,5 +82,26 @@ theorem fold'_induction
   refine dfold_induction (α := fun i => i ≤ n → α) (motive := fun i a => (h : i ≤ n) → motive i (a h)) _ n (fun _ => init) (fun _ => zero) ?_ .refl
   intro i a IH hi
   exact succ i hi _ (IH _)
+
+theorem fold'_hom
+  {α : Type u} {β : Type v} (n : Nat)
+  (f : α → β) (g₁ : Fin n → α → α) (g₂ : Fin n → β → β) (init : α)
+  (H : ∀ i a, g₂ i (f a) = f (g₁ i a))
+  : fold' n g₂ (f init) = f (fold' n g₁ init) := by
+  dsimp [fold']
+  let α' : Nat → Type u := fun i => i ≤ n → α
+  let β' : Nat → Type v := fun i => i ≤ n → β
+  let f' : (i : Nat) → α' i → β' i :=
+    fun i ha hi => f (ha hi)
+  let g₁' : (i : Nat) → α' i → α' (i+1) :=
+    fun i x hi => g₁ ⟨i,hi⟩ (x <| Nat.le_of_lt hi)
+  let g₂' : (i : Nat) → β' i → β' (i+1) :=
+    fun i y hi => g₂ ⟨i,hi⟩ (y <| Nat.le_of_lt hi)
+  let init' : α' 0 := fun _ => init
+  suffices ∀ (k : Nat), dfold g₂' k (f' 0 init') = f' k (dfold g₁' k init') by
+    rw [this n]
+  intro k
+  refine dfold_hom f' g₁' g₂' k init' ?_
+  intro i x; dsimp; simp only [H]
 
 end Nat

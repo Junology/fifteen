@@ -17,6 +17,7 @@ In this file, we discuss the inversions and the signs of permutations.
 
 * `Permutation.Inversion`: the structure representing each inversion.
 * `Permutation.inversions`: the array of all inversions of a permutation.
+* `Permutation.inversionNum`: the number of inversions.
 * `Permutation.sign`: the sign of a permutation.
 
 ## TODO
@@ -28,6 +29,9 @@ In this file, we discuss the inversions and the signs of permutations.
 namespace Permutation
 
 variable {n : Nat}
+
+
+/-! ### Declaration about `Permutation.Inversion` -/
 
 /--
 `Permutation.Inversion x` is a structure representing an inversion of given permutation `x : Permutation n`.
@@ -48,11 +52,14 @@ instance (n : Nat) (x : Permutation n) : Repr (Inversion x) where
 
 end Inversion
 
+
+/-! ### Declarations about `Permutation.inversions` -/
+
 /-- Get the list of inversions of a permutation. -/
 @[inline]
 def inversions (x : Permutation n) : Array (Inversion x) :=
-  #[] |> Nat.fold' n fun j ivs =>
-    ivs |> Nat.fold' j.1 fun i ivs =>
+  #[] |> Nat.fold' n fun j =>
+    Nat.fold' j.1 fun i ivs =>
       if h : x[i.1]'(Nat.lt_trans i.2 j.2) > x[j.1] then
         ivs.push {
           fst := i.castLE (Nat.le_of_lt j.2)
@@ -152,6 +159,55 @@ instance Inversion.finite (x : Permutation n) : BishopFin (Inversion x) where
     simp only [Array.toList_eq, ← Array.mem_iff_mem_data]
     exact x.mem_inversions
 
+theorem inversions_size_eq_card (x : Permutation n) : x.inversions.size = BishopFin.card (Inversion x) :=
+  show x.inversions.data.length = x.inversions.toList.length
+  by rw [Array.toList_eq]
+
+theorem Inversion.card_eq (x : Permutation n) : BishopFin.card x.Inversion = BishopFin.count fun (t : Fin n × Fin n) => t.1.1 < t.2.1 ∧ x[t.1.1] > x[t.2.1] := by
+  rewrite [BishopFin.count_eq_card]
+  refine BishopFin.card_eq_card_of_bij ?_ ?_ ?_
+  . exact fun iv => ⟨⟨iv.1,iv.2⟩, iv.3, iv.4⟩
+  . intro t; exact ⟨⟨t.1.1, t.1.2, t.2.1, t.2.2⟩, rfl⟩
+  . intro iv₁ iv₂
+    simp only [Subtype.mk.injEq, Prod.mk.injEq, and_imp]
+    intro hfst hsnd
+    cases iv₁; cases iv₂; cases hfst; cases hsnd; rfl
+
+/--
+:::note warn
+The theorem depends on `Classical.choice` since `Permutation.toFun_inv_toFun` and `Permutation.toFun_toFun_inv` do.
+:::
+-/
+theorem Inversion.card_eq_of_mul (x y : Permutation n) : BishopFin.card x.Inversion = BishopFin.count fun (t : Fin n × Fin n) => y[t.1.1].1 < y[t.2.1].1 ∧ (x * y)[t.1.1] > (x * y)[t.2.1] := by
+  rewrite [Inversion.card_eq x]
+  simp only [get_mul]
+  refine BishopFin.count_eq_count_invimage_of_inv (Prod.map y.toFun y.toFun) (Prod.map y.inv.toFun y.inv.toFun) ?_ ?_
+  . simp only [Prod.map, toFun_inv_toFun, implies_true]
+  . simp only [Prod.map, toFun_toFun_inv, implies_true]
+
+
+/-! ### Declarations about `Permutation.inversionNum` -/
+
+/-- Compute the number of inversions of a given permutation `x : Permutation n` -/
+@[inline]
+def inversionNum (x : Permutation n) : Nat :=
+  0 |> Nat.fold' n fun j =>
+    Nat.fold' j.1 fun i k =>
+      if x[i.1] > x[j.1] then k+1 else k
+
+theorem inversionNum_eq_card_inversion (x : Permutation n) : x.inversionNum = BishopFin.card x.Inversion := by
+  rewrite [← inversions_size_eq_card]
+  dsimp [inversionNum, inversions]
+  conv => lhs; pattern 0; change (#[] : Array x.Inversion).size
+  apply Nat.fold'_hom
+  intro j _
+  apply Nat.fold'_hom
+  intro i ivs'
+  if hx : x[i.1]'(Nat.lt_trans i.2 j.2) > x[j.1] then
+    simp only [hx, if_pos, dif_pos, Array.size_push]
+  else
+    simp only [hx, if_neg, dif_neg]
+
 /--
 `Permutation.sign x` is the sign of the permutation `x : Permutation n`.
 The function regards `Bool` as the group of order 2 by the XOR operation;
@@ -159,6 +215,6 @@ hence `Permutation.sign x = true` implies the parity is odd.
 -/
 @[inline]
 def sign (x : Permutation n) : Bool :=
-  x.inversions.size % 2 == 1
+  x.inversionNum % 2 == 1
 
 end Permutation

@@ -184,6 +184,29 @@ def inv (x : Permutation n) : Permutation n :=
     exact this
 
 /--
+`Permutation.inv.toFun x` is a left inverse to `x.toFun`; see also `Permutation.toFun_toFun_inv`.
+
+:::note warn
+The function currently depends on `Classical.choice` since `Permutation.toFun_ofFn` does.
+:::
+-/
+@[simp]
+theorem toFun_inv_toFun (x : Permutation n) (i : Fin n) : x.inv.toFun (x.toFun i) = i := by
+  simp only [inv, toFun_ofFn]
+  exact Fin.invOfInj_left ..
+
+/--
+`Permutation.inv.toFun x` is a right inverse to `x.toFun`; see also `Permutation.toFun_inv_toFun`.
+
+:::note warn
+The function currently depends on `Classical.choice` since `Permutation.toFun_ofFn` does.
+-/
+@[simp]
+theorem toFun_toFun_inv (x : Permutation n) (i : Fin n) : x.toFun (x.inv.toFun i) = i := by
+  simp only [inv, toFun_ofFn]
+  exact Fin.invOfInj_right ..
+
+/--
 `Permutation.castAdd x` embeds the permutation `x : Permutation n` on `Fin n` into one on `Fin (n+m)`.
 
 :::note warn
@@ -299,16 +322,14 @@ theorem mul_assoc (x y z : Permutation n) : x * y * z = x * (y * z) :=
 @[simp]
 theorem inv_mul (x : Permutation n) : x.inv * x = 1 :=
   eq_of_toFun_eq _ _ <| by
-    simp only [toFun_mul, inv, toFun_ofFn, toFun_one]
-    apply funext; intro i; dsimp
-    exact Fin.invOfInj_left ..
+    funext i; simp only [toFun_mul, toFun_one]
+    exact toFun_inv_toFun x i
 
 @[simp]
 theorem mul_inv (x : Permutation n) : x * x.inv = 1 :=
   eq_of_toFun_eq _ _ <| by
-    simp only [toFun_mul, inv, toFun_ofFn, toFun_one]
-    apply funext; intro i; dsimp
-    exact Fin.invOfInj_right ..
+    funext i; simp only [toFun_mul, toFun_one]
+    exact toFun_toFun_inv x i
 
 theorem mul_left_cancel {x y z : Permutation n} (h : x * y = x * z) : y = z := by
   have := congrArg (x.inv * ·) h
