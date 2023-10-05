@@ -117,6 +117,9 @@ theorem Nodup.erase [DecidableEq α] (a : α) {l : List α} (hnodup : l.Nodup) :
         exact hhead b (List.mem_of_mem_erase hb) rfl
       . exact IH htail
 
+theorem nodup_singleton (a : α) : [a].Nodup :=
+  .cons (fun _ h => nomatch h) .nil
+
 theorem nodup_cons_of_notmem_nodup (a : α) {l : List α} (ha : a ∉ l) (hnodup : l.Nodup) : (a :: l).Nodup := by
   refine .cons ?_ hnodup
   intros _ hal h; cases h

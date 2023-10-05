@@ -6,6 +6,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 import Std.Data.List.Lemmas
 import Std.Data.Array.Lemmas
 
+import Fifteen.Data.Nat.Basic
 import Fifteen.Data.List.Basic
 
 /-!
@@ -28,6 +29,29 @@ This theorem depends on `Classical.choice` since `Array.append_data` does.
 -/
 theorem size_append (as bs : Array α) : (as ++ bs).size = as.size + bs.size := by
   dsimp [size]; rw [append_data, List.length_append]
+
+theorem any_eq_any_data (as : Array α) (p : α → Bool) : as.any p = as.data.any p := by
+  dsimp [any, anyM]; simp
+  conv => rhs; change (as.data.drop 0).any p
+  refine Nat.decreasing_induction (m:=0) (n:=as.size) ?_ ?_ as.size.zero_le
+  . intro j IH
+    unfold anyM.loop; dsimp
+    if hlt : j < as.size then
+      rewrite [dif_pos hlt, ← List.get_drop_eq_drop _ _ hlt, List.any_cons, List.getElem_eq_get, ← Array.getElem_eq_data_get]
+      if hpj : p (as[j]'hlt) = true then
+        rewrite [if_pos hpj, hpj, Bool.true_or]
+        rfl
+      else
+        rw [if_neg hpj, IH, Bool.eq_false_iff.mpr hpj, Bool.false_or]
+    else
+      rewrite [dif_neg hlt, List.drop_eq_nil_of_le (Nat.le_of_not_lt hlt)]
+      rfl
+  . unfold anyM.loop; dsimp
+    rewrite [dif_neg (Nat.lt_irrefl _), List.drop_eq_nil_of_le .refl]
+    rfl
+
+
+/-! ### Lemmas about `GetElem.getElem` -/
 
 theorem getElem_swap (as : Array α) (i j : Fin as.size) (k : Nat) {hk : k < (as.swap i j).size} : (as.swap i j)[k] = if j.1 = k then as[i.1] else if i.1 = k then as[j.1] else as[k]'(as.size_swap i j ▸ hk) := by
   have : ∀ {m n : Nat} (h : m = n) (i : Fin m), ((h ▸ i) : Fin n).val = i.val :=
@@ -57,6 +81,32 @@ theorem getElem_append_right {i : Nat} (as bs : Array α) (h : i ≥ as.size) {h
   rewrite [List.get_append_right' h]
   rfl
 
+
+/-! ### Membership relation -/
+
+section Membership
+
+variable [DecidableEq α]
+
+theorem mem_iff_mem_data {a : α} {as : Array α} : a ∈ as ↔ a ∈ as.data := by
+  show as.any (fun b => a = b) = true ↔ a ∈ as.data
+  rewrite [any_eq_any_data]
+  simp only [List.any_eq_true, List.mem_iff_get]
+  constructor
+  . intro h
+    let ⟨_, ⟨i,hi⟩, h⟩ := h
+    cases of_decide_eq_true h
+    exact ⟨i,hi⟩
+  . intro h; exists a; simp; exact h
+
+theorem mem_push {a b : α} {as : Array α} : a ∈ as.push b ↔ a ∈ as ∨ a = b := by
+  rw [mem_iff_mem_data, push_data, List.mem_append, mem_iff_mem_data, List.mem_singleton]
+
+end Membership
+
+
+/-! ### Declaration about `Array.Nodup` -/
+
 /-- The counterpart of `List.Nodup` in `Std` -/
 def Nodup (as : Array α) : Prop :=
   as.data.Nodup
@@ -78,6 +128,20 @@ theorem nodup_of_get_inj (as : Array α) (h : ∀ (i j : Nat) (hi : i < as.size)
 
 theorem Nodup.get_inj {as : Array α} (h : as.Nodup) (i j : Nat) (hi : i < as.size) (hj : j < as.size) : as[i] = as[j] → i = j :=
   List.Nodup.get_inj h (hi:=hi) (hj:=hj)
+
+theorem nodup_push [DecidableEq α] {as : Array α} {a : α} : (as.push a).Nodup ↔ as.Nodup ∧ a ∉ as := by
+  show (as.push a).data.Nodup ↔ as.Nodup ∧ a ∉ as
+  rewrite [Array.push_data]
+  apply Iff.trans List.pairwise_append
+  show as.Nodup ∧ [a].Nodup ∧ _ ↔ _
+  simp only [List.nodup_singleton a, true_and, ← mem_iff_mem_data, List.mem_singleton, forall_eq]
+  apply and_congr_right'
+  constructor
+  . intro h ha; exact h a ha rfl
+  . intro ha b hb heq; cases heq; exact ha hb
+
+theorem Nodup.push [DecidableEq α] {as : Array α} (has : as.Nodup) {a : α} (ha : a ∉ as) : (as.push a).Nodup :=
+  nodup_push.mpr ⟨has,ha⟩
 
 /--
 :::note warn
@@ -151,6 +215,7 @@ theorem nodup_swap (as : Array α) (i j : Fin as.size) (h : as.Nodup) : (as.swap
   . simp only [hil]
   . exfalso; exact hik <| Eq.symm <| h.get_inj _ _ _ _ has
   . exfalso; exact hjk <| Eq.symm <| h.get_inj _ _ _ _ has
+
 
 end Array
 
