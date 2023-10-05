@@ -163,7 +163,7 @@ theorem inversions_size_eq_card (x : Permutation n) : x.inversions.size = Bishop
   show x.inversions.data.length = x.inversions.toList.length
   by rw [Array.toList_eq]
 
-theorem Inversion.card_eq (x : Permutation n) : BishopFin.card x.Inversion = BishopFin.count fun (t : Fin n × Fin n) => t.1.1 < t.2.1 ∧ x[t.1.1] > x[t.2.1] := by
+theorem Inversion.card_eq (x : Permutation n) : BishopFin.card x.Inversion = BishopFin.count fun (t : Fin n × Fin n) => t.1.1 < t.2.1 ∧ x[t.1.1].1 > x[t.2.1].1 := by
   rewrite [BishopFin.count_eq_card]
   refine BishopFin.card_eq_card_of_bij ?_ ?_ ?_
   . exact fun iv => ⟨⟨iv.1,iv.2⟩, iv.3, iv.4⟩
@@ -178,7 +178,7 @@ theorem Inversion.card_eq (x : Permutation n) : BishopFin.card x.Inversion = Bis
 The theorem depends on `Classical.choice` since `Permutation.toFun_inv_toFun` and `Permutation.toFun_toFun_inv` do.
 :::
 -/
-theorem Inversion.card_eq_of_mul (x y : Permutation n) : BishopFin.card x.Inversion = BishopFin.count fun (t : Fin n × Fin n) => y[t.1.1].1 < y[t.2.1].1 ∧ (x * y)[t.1.1] > (x * y)[t.2.1] := by
+theorem Inversion.card_eq_of_mul (x y : Permutation n) : BishopFin.card x.Inversion = BishopFin.count fun (t : Fin n × Fin n) => y[t.1.1].1 < y[t.2.1].1 ∧ (x * y)[t.1.1].1 > (x * y)[t.2.1].1 := by
   rewrite [Inversion.card_eq x]
   simp only [get_mul]
   refine BishopFin.count_eq_count_invimage_of_inv (Prod.map y.toFun y.toFun) (Prod.map y.inv.toFun y.inv.toFun) ?_ ?_
@@ -207,6 +207,71 @@ theorem inversionNum_eq_card_inversion (x : Permutation n) : x.inversionNum = Bi
     simp only [hx, if_pos, dif_pos, Array.size_push]
   else
     simp only [hx, if_neg, dif_neg]
+
+/--
+Write the sum of inversion numbers of two permutations `x y : Permutation n` in terms of the inversion number of their product `x * y`.
+
+:::note warn
+The theorem depends on `Classical.choice` since `Permutation.Inversion.card_eq_of_mul` does.
+:::
+-/
+theorem inversionNum_add (x y : Permutation n) : x.inversionNum + y.inversionNum = (x * y).inversionNum + 2 * BishopFin.count fun (t : Fin n × Fin n) => t.1.1 < t.2.1 ∧ y[t.1.1].1 > y[t.2.1].1 ∧ (x * y)[t.1.1].1 < (x * y)[t.2.1].1 := by
+  simp only [inversionNum_eq_card_inversion]
+  conv =>
+    lhs; lhs; rw [Inversion.card_eq_of_mul x y]
+    rw [BishopFin.count_split fun t => t.1.1 < t.2.1]
+  conv =>
+    lhs; rhs; rw [Inversion.card_eq]
+    rw [BishopFin.count_split fun t => (x * y)[t.1.1].1 > (x * y)[t.2.1].1]
+  have : ∀ (a b c d : Nat), (a + b) + (c + d) = (a + c) + (b + d) :=
+    fun a b c d => by
+      conv => lhs; rw [Nat.add_assoc, ← Nat.add_assoc b, Nat.add_comm b c, Nat.add_assoc c, ← Nat.add_assoc a]
+  conv => lhs; rw [this]
+  conv =>
+    rhs; lhs; rw [Inversion.card_eq]
+    rw [BishopFin.count_split fun t => y[t.1.1].1 < y[t.2.1].1]
+  conv =>
+    rhs; rhs; rw [Nat.two_mul]
+  refine congrArg₂ HAdd.hAdd (congrArg₂ HAdd.hAdd ?_ ?_) (congrArg₂ HAdd.hAdd ?_ ?_)
+  -- all_goals apply BishopFin.count_congr; intro t
+  . apply BishopFin.count_congr; intro t
+    conv => lhs; rw [and_comm]
+    conv => rhs; rw [and_assoc]; rhs; rw [and_comm]
+  . apply BishopFin.count_congr; intro t
+    conv =>
+      rhs; rw [and_assoc]
+      conv => rhs; rw [and_comm]
+      rw [← and_assoc]
+    refine and_congr_left' ?_
+    refine and_congr_right ?_
+    intro ht
+    simp only [Nat.not_lt_eq, Nat.le_iff_lt_or_eq]
+    apply Iff.symm; apply or_iff_left
+    intro hyt
+    exact Nat.lt_irrefl _ <| (y.get_inj _ _ <| Fin.eq_of_val_eq hyt) ▸ ht
+  . let swap : Fin n × Fin n → Fin n × Fin n :=
+      fun t => ⟨t.2, t.1⟩
+    have : ∀ t, swap (swap t) = t := fun | .mk i j => rfl
+    conv =>
+      lhs; rw [BishopFin.count_eq_count_invimage_of_inv swap swap this this]
+    dsimp only [Function.comp]
+    apply BishopFin.count_congr; intro t
+    conv => lhs; rw [and_comm]
+    refine and_congr_left ?_
+    intro ht
+    rewrite [Nat.not_lt_eq, Nat.le_iff_lt_or_eq]
+    apply or_iff_left
+    intro ht'; cases t; dsimp at *
+    cases Fin.eq_of_val_eq ht'; exact Nat.lt_irrefl _ ht.1
+  . apply BishopFin.count_congr; intro t
+    rewrite [← and_assoc]
+    apply and_congr_right
+    intro ht
+    rewrite [Nat.not_lt_eq, Nat.le_iff_lt_or_eq]
+    apply or_iff_left
+    intro hxyt
+    have : t.1.1 = t.2.1 := (x*y).get_inj _ _ <| Fin.eq_of_val_eq hxyt
+    exact Nat.lt_irrefl _ (this ▸ ht.1)
 
 /--
 `Permutation.sign x` is the sign of the permutation `x : Permutation n`.

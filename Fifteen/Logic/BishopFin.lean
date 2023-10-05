@@ -229,6 +229,21 @@ theorem count_disjoint_or (h : ∀ a, ¬(p a ∧ q a)) : count (fun a => p a ∨
   simp only [← decide_and, decide_eq_false_iff_not]
   exact h
 
+variable (q) in
+theorem count_split : count p = count (fun a => p a ∧ q a) + count (fun a => p a ∧ ¬ q a) := by
+  conv =>
+    lhs
+    rewrite [count_eq_card, card_eq_count_add_count_not (q ∘ Subtype.val)]
+  refine congr (congrArg _ ?_) ?_
+  all_goals (
+    simp only [count_eq_card]
+    apply card_eq_card_of_bij fun x => ⟨x.1.1, x.1.2, x.2⟩
+    . intro y; exact ⟨⟨⟨y.1,y.2.1⟩,y.2.2⟩,rfl⟩
+    . intro x₁ x₂
+      simp only [Subtype.mk.injEq]
+      exact Subtype.eq ∘ Subtype.eq
+  )
+
 theorem count_image_le_card [DecidableEq β] (f : α → β) : count (fun b => ∃ a, f a = b) ≤ card α := by
   have := (elems α).countP_image_le_length nodup_elems (f := f)
   simp only [mem_elems, true_and] at this
