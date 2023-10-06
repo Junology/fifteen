@@ -46,35 +46,27 @@ def randNatWithProof (g : gen) (lo hi : Nat) (h : lo ≤ hi) : {x : Nat // lo �
       exact randNat_range g lo hi h
     ⟨⟨r,this⟩, g'⟩
 
-def IO.randRange (lo hi : Nat) (h : lo ≤ hi): IO {x : Nat // lo ≤ x ∧ x ≤ hi} := do
-  let gen ← IO.stdGenRef.get
-  let (r, gen) := randNatWithProof gen lo hi h
-  IO.stdGenRef.set gen
-  pure r
-
 end Random
 
 
 namespace Permutation
 
-/--
-Generating a random permutation in the context of `IO` monad.
-The algorithm based on the decoding of the Lehmer code.
--/
+/-- Generate a random permutation using a given random number generator. -/
 @[inline]
-def random (n : Nat) : IO (Permutation n) :=
-  -- The code is stolen from `List.finRange` in `Mathlib`
-  let finRange : List (Fin n) :=
-    (List.range n).pmap Fin.mk fun _ => List.mem_range.mp
-  do
-  let mut x : Permutation n := 1
-  for i in finRange do
-    have : n ≠ 0 := fun h => by cases h; exact i.elim0
+def random {gen : Type u} [RandomGen gen] (g : gen) (n : Nat) : Permutation n × gen :=
+  (1,g) |> Nat.fold' n fun i ((x,g) : Permutation n × gen) =>
+    have hn : n ≠ 0 := fun h => by cases h; exact i.elim0
     have : i.1 ≤ (n-1) := Nat.le_of_lt_succ <| by
       show i.1 < n.pred.succ
-      rewrite [n.succ_pred this]; exact i.2
-    let ⟨r,hr⟩ ← IO.randRange i.1 (n-1) this
-    x := x.swap i ⟨r, trans hr.2 (n.pred_lt ‹n≠0›)⟩
+      rewrite [n.succ_pred hn]; exact i.2
+    let ⟨⟨r,hr⟩,g⟩ := randNatWithProof g i.1 (n-1) this
+    (x.swap i ⟨r, trans hr.2 (n.pred_lt hn)⟩, g)
+
+/-- Generate a random permutation using `IO.stdGenRef`. -/
+def randomIO (n : Nat) : IO (Permutation n) := do
+  let g ← IO.stdGenRef.get
+  let ⟨x,g⟩ := random g n
+  IO.stdGenRef.set g
   return x
 
 end Permutation
