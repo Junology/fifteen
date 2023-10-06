@@ -111,6 +111,9 @@ end Membership
 def Nodup (as : Array α) : Prop :=
   as.data.Nodup
 
+instance {α : Type u} [DecidableEq α] (as : Array α): Decidable as.Nodup :=
+  inferInstanceAs (Decidable as.data.Nodup)
+
 /--
 `Array.ofFn f` is `Nodup` provided `f` is injective.
 
