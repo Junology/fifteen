@@ -107,4 +107,9 @@ theorem sign_transpos (i j : Fin n) (h : i ≠ j) : (transpos i j).sign = true :
     rewrite [this]; simp only [sign_conj]
     exact IH _
 
+@[simp]
+theorem sign_swap (x : Permutation n) (i j : Fin n) (h : i ≠ j) : (x.swap i j).sign = !x.sign := by
+  rewrite [← mul_transpose_eq_swap, sign_mul, sign_transpos i j h]
+  exact Bool.bne_true _
+
 end Permutation

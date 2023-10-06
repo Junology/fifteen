@@ -31,6 +31,14 @@ theorem Bool.bne_false (a : Bool) : (a != false) = a := by
 theorem Bool.false_bne (a : Bool) : (false != a) = a := by
   cases a <;> decide
 
+@[simp]
+theorem Bool.bne_true (a : Bool) : (a != true) = !a := by
+  cases a <;> decide
+
+@[simp]
+theorem Bool.true_bne (a : Bool) : (true != a) = !a := by
+  cases a <;> decide
+
 theorem Bool.bne_eq_false (a b : Bool) : (a != b) = false ↔ a = b := by
   cases a <;> cases b <;> decide
 
