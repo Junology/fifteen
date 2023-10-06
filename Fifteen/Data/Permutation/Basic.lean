@@ -421,5 +421,15 @@ def cyclic (l : List (Fin n)) : Permutation n :=
   | [] => 1
   | (i :: l) => l.foldr (fun j x => x.swap i j) 1
 
+
+/-! ### Order reversion -/
+
+/--
+`Fin.rev` as a permutation; hence, it permutes a sequence `(a₁,a₂,…,aₙ)` into `(aₙ,…,a₂,a₁)`.
+-/
+@[inline]
+def rev (n : Nat) : Permutation n :=
+  Permutation.ofFn Fin.rev fun _ _ => Fin.rev_inj.mp
+
 end Permutation
 
