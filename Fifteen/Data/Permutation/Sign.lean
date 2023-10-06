@@ -13,16 +13,15 @@ import Fifteen.Data.Permutation.Basic
 Given a permutation `x : Permutation n` on `Fin n`, we call a pair `(i,j) : Fin n × Fin n` an ***inversion*** of `x` if `i < j` and `x[i] > x[j]`.
 In this file, we discuss the inversions and the signs of permutations.
 
-## Main declarations
+## Main declarations and results
 
 * `Permutation.Inversion`: the structure representing each inversion.
 * `Permutation.inversions`: the array of all inversions of a permutation.
 * `Permutation.inversionNum`: the number of inversions.
+* `Permutation.InversionNum_add` : the inversion number formula for multiplication of permutations.
 * `Permutation.sign`: the sign of a permutation.
+* `Permutation.sign_mul`: multiplicativity of `Permutation.sign`.
 
-## TODO
-
-* `(x * y).sign = (x.sign != y.sign)`
 -/
 
 
@@ -233,7 +232,6 @@ theorem inversionNum_add (x y : Permutation n) : x.inversionNum + y.inversionNum
   conv =>
     rhs; rhs; rw [Nat.two_mul]
   refine congrArg₂ HAdd.hAdd (congrArg₂ HAdd.hAdd ?_ ?_) (congrArg₂ HAdd.hAdd ?_ ?_)
-  -- all_goals apply BishopFin.count_congr; intro t
   . apply BishopFin.count_congr; intro t
     conv => lhs; rw [and_comm]
     conv => rhs; rw [and_assoc]; rhs; rw [and_comm]
@@ -273,6 +271,9 @@ theorem inversionNum_add (x y : Permutation n) : x.inversionNum + y.inversionNum
     have : t.1.1 = t.2.1 := (x*y).get_inj _ _ <| Fin.eq_of_val_eq hxyt
     exact Nat.lt_irrefl _ (this ▸ ht.1)
 
+
+/-! ### Declarations about `Permutation.sign` -/
+
 /--
 `Permutation.sign x` is the sign of the permutation `x : Permutation n`.
 The function regards `Bool` as the group of order 2 by the XOR operation;
@@ -281,5 +282,25 @@ hence `Permutation.sign x = true` implies the parity is odd.
 @[inline]
 def sign (x : Permutation n) : Bool :=
   x.inversionNum % 2 == 1
+
+/--
+Multiplicativity of `Permutation.sign`.
+
+:::note warn
+The theorem depends on `Classicla.choice` since `Permutation.inversionNum_add` does.
+:::
+-/
+@[simp]
+theorem sign_mul (x y : Permutation n) : (x * y).sign = (x.sign != y.sign) := by
+  have := congrArg (· % 2) <| inversionNum_add x y
+  conv at this =>
+    dsimp; rw [Nat.add_mul_mod_self_left, Nat.add_mod]
+  dsimp [sign]; rw [← this]; clear this
+  generalize x.inversionNum = m
+  generalize y.inversionNum = n
+  cases m.mod_two_eq_zero_or_one
+    <;> cases n.mod_two_eq_zero_or_one
+    <;> rename_i hm hn
+    <;> simp only [hm, hn]
 
 end Permutation
