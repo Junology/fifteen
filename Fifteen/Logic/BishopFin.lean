@@ -66,6 +66,29 @@ def card : Nat :=
 theorem _root_.List.Nodup.length_le_card {l : List α} (nodup : l.Nodup) : l.length ≤ card α :=
   nodup.length_le_of_subset <| subset_elems l
 
+theorem card_subsingleton [Subsingleton α] : card α ≤ 1 := by
+  dsimp [card]
+  cases hl : elems α <;> dsimp
+  . decide
+  rename_i a l
+  cases l <;> dsimp
+  . decide
+  exfalso
+  rename_i b l
+  cases Subsingleton.allEq a b
+  have : List.Nodup (a :: a :: l) := hl ▸ nodup_elems
+  exact this.head (List.mem_cons_self a l)
+
+theorem card_nonempty [Nonempty α] : card α ≥ 1 := by
+  cases Nat.eq_zero_or_pos (card α) with
+  | inl h0 =>
+    dsimp [card] at h0
+    rcases ‹Nonempty α› with ⟨a⟩
+    have := List.eq_nil_of_length_eq_zero h0
+    have : a ∈ [] := this ▸ mem_elems a
+    cases this
+  | inr h => exact h
+
 theorem card_le_card_of_inj (f : α → β) (f_inj : ∀ a₁ a₂, f a₁ = f a₂ → a₁ = a₂) : card α ≤ card β := by
   dsimp only [card]
   conv =>
@@ -133,6 +156,28 @@ instance prod {α : Type u} {β : Type v} [BishopFin α] [BishopFin β] : Bishop
   nodup_elems' := nodup_elems.product nodup_elems
   mem_elems' := fun
     | .mk a b => List.pair_mem_product.mpr ⟨mem_elems a, mem_elems b⟩
+
+instance sum {α : Type u} {β : Type v} [BishopFin α] [BishopFin β] : BishopFin (α ⊕ β) where
+  elems' := (elems α).map Sum.inl ++ (elems β).map Sum.inr
+  nodup_elems' := by
+    refine List.Nodup.append ?_ ?_ ?_
+    . exact nodup_elems.map Sum.inl fun _ _ => Sum.inl.inj
+    . exact nodup_elems.map Sum.inr fun _ _ => Sum.inr.inj
+    . simp only [List.mem_map]
+      intro _ hl hr; let ⟨a,_,ha⟩ := hl; let ⟨b,_,hb⟩ := hr
+      cases ha; cases hb
+  mem_elems' := fun
+    | .inl a =>
+      List.mem_append_of_mem_left _
+        <| List.mem_map_of_mem _ (mem_elems a)
+    | .inr b =>
+      List.mem_append_of_mem_right _
+        <| List.mem_map_of_mem _ (mem_elems b)
+
+theorem card_sum_eq {α : Type u} {β : Type v} [BishopFin α] [BishopFin β] : card (α ⊕ β) = card α + card β := by
+  show ((elems α).map Sum.inl ++ (elems β).map Sum.inr).length = _
+  simp only [List.length_append, List.length_map]
+  rfl
 
 instance subtype {α : Type u} {p : α → Prop} [BishopFin α] [DecidablePred p] : BishopFin (Subtype p) where
   elems' :=

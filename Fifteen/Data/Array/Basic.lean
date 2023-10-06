@@ -50,6 +50,13 @@ theorem any_eq_any_data (as : Array α) (p : α → Bool) : as.any p = as.data.a
     rewrite [dif_neg (Nat.lt_irrefl _), List.drop_eq_nil_of_le .refl]
     rfl
 
+theorem swap_comm (as : Array α) (i j : Fin as.size) : as.swap i j = as.swap j i := by
+  apply Array.ext'; simp only [Array.data_swap]
+  if h : i.1 = j.1 then
+    cases Fin.eq_of_val_eq h; rfl
+  else
+    rw [List.set_comm _ _ _ h]
+
 
 /-! ### Lemmas about `GetElem.getElem` -/
 

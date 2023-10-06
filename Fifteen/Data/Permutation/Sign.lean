@@ -43,6 +43,11 @@ hence `Permutation.sign x = true` implies the parity is odd.
 def sign (x : Permutation n) : Bool :=
   x.inversionNum % 2 == 1
 
+theorem sign_one : (1 : Permutation n).sign = false := by
+  dsimp [sign]
+  rewrite [inversionNum_one]
+  decide
+
 /--
 Multiplicativity of `Permutation.sign`.
 
@@ -62,5 +67,44 @@ theorem sign_mul (x y : Permutation n) : (x * y).sign = (x.sign != y.sign) := by
     <;> cases n.mod_two_eq_zero_or_one
     <;> rename_i hm hn
     <;> simp only [hm, hn]
+
+@[simp]
+theorem sign_inv (x : Permutation n) : x.inv.sign = x.sign := by
+  have : sign (x.inv * x) = sign (1 : Permutation n) := x.inv_mul ▸ rfl
+  conv at this =>
+    simp only [sign_mul, sign_one]
+    rewrite [Bool.bne_eq_false]
+  exact this
+
+@[simp]
+theorem sign_conj (x y : Permutation n) : (x * y * x.inv).sign = y.sign := by
+  simp only [sign_mul]
+  rw [sign_inv, Bool.bne_comm x.sign, Bool.bne_assoc, Bool.bne_self, Bool.bne_false]
+
+@[simp]
+theorem sign_transposAdj (i : Nat) (h : i+1 < n) : (transposAdj i h).sign = true := by
+  dsimp [sign]
+  rewrite [inversionNum_transposAdj]
+  decide
+
+@[simp]
+theorem sign_transpos (i j : Fin n) (h : i ≠ j) : (transpos i j).sign = true := by
+  suffices ∀ (i j : Fin n), i < j → (transpos i j).sign = true by
+    rcases Nat.lt_trichotomy i.1 j.1 with hlt | heq | hgt
+    . exact this i j hlt
+    . exfalso; exact h <| Fin.eq_of_val_eq heq
+    . rewrite [transpos_comm]; exact this j i hgt
+  clear i j h; intro i j h
+  rcases i with ⟨i,hi⟩; rcases j with ⟨j,hj⟩
+  simp at h
+  induction h with
+  | refl => exact sign_transposAdj i hj
+  | @step j hij IH =>
+    let s := transpos ⟨i,hi⟩ ⟨j, Nat.lt_of_succ_lt hj⟩
+    have : transpos ⟨i,hi⟩ ⟨j+1,hj⟩ = transposAdj j hj * s * (transposAdj j hj).inv := by
+      simp only [transpos_conj]
+      rw [get_transposAdj_of_lt hij, get_transposAdj_self]
+    rewrite [this]; simp only [sign_conj]
+    exact IH _
 
 end Permutation

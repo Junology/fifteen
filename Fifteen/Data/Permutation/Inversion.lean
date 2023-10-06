@@ -272,4 +272,108 @@ theorem inversionNum_add (x y : Permutation n) : x.inversionNum + y.inversionNum
     have : t.1.1 = t.2.1 := (x*y).get_inj _ _ <| Fin.eq_of_val_eq hxyt
     exact Nat.lt_irrefl _ (this ▸ ht.1)
 
+
+/-! ### The identity permutation-/
+
+theorem Inversion.elim1 {α : Sort u} (iv : Inversion (1 : Permutation n)) : α := by
+  rcases iv with ⟨i,j,hlt,hinv⟩
+  conv at hinv => simp only [get_one]
+  exfalso
+  exact Nat.lt_asymm hlt hinv
+
+theorem inversions_one : inversions (1 : Permutation n) = #[] := by
+  apply Array.ext'; generalize (inversions 1).data = l
+  cases l with
+  | nil => rfl
+  | cons iv l => exact iv.elim1
+
+theorem inversionNum_one : inversionNum (1 : Permutation n) = 0 := by
+  rewrite [inversionNum_eq_card_inversion]
+  show (inversions 1).toList.length = 0
+  rewrite [inversions_one]
+  rfl
+
+
+/-! ### Inversions and inversion numbers for transpositions -/
+
+/-- The canonical inverion of the transposition. -/
+def transposInversion (i j : Fin n) (h : i.1 < j.1) : Inversion (transpos i j) where
+  fst := i
+  snd := j
+  lt := h
+  inverted := by
+    simp only [get_transpos, Nat.ne_of_lt h, (Ne.symm <| Nat.ne_of_lt h)]
+    exact h
+
+theorem Inversion.nonempty_transpos {i j : Fin n} (h : i ≠ j) : Nonempty (Inversion (transpos i j)) := by
+  cases Nat.lt_or_ge i.1 j.1 with
+  | inl hlt => exact ⟨transposInversion i j hlt⟩
+  | inr hge =>
+    rewrite [transpos_comm]
+    refine ⟨transposInversion j i ?_⟩
+    exact Nat.lt_of_le_of_ne hge fun hcntr =>
+      h <| Fin.eq_of_val_eq hcntr.symm
+
+instance Inversion.nonempty_transposAdj {i : Nat} {h : i+1 < n} : Nonempty (Inversion (transposAdj i h)) :=
+  Inversion.nonempty_transpos fun hcntr => nomatch hcntr
+
+def Inversion.fst_eq_or_snd_eq_of_transpos {i j : Fin n} (h : i < j) (iv : Inversion (transpos i j)) : iv.fst = i ∨ iv.snd = j :=
+  Decidable.by_contra fun hcntr => by
+    cases iv with | mk k l hlt hinv =>
+    have : ∀ (i j : Fin n), i = j ↔ i.1 = j.1 :=
+      fun _ _ => ⟨Fin.val_eq_of_eq, Fin.eq_of_val_eq⟩
+    simp only [not_or, this] at hcntr
+    conv at hinv =>
+      simp only [get_transpos, Ne.symm hcntr.1, Ne.symm hcntr.2, if_neg]
+    if hjk : j.1 = k.1 then
+      cases Fin.eq_of_val_eq hjk
+      have hil : i.1 < l.1 := Nat.lt_trans h hlt
+      have : i.1 ≠ l.1 := Nat.ne_of_lt hil
+      simp only [this, if_pos, if_neg] at hinv
+      exact Nat.lt_asymm hil hinv
+    else if hil : i.1 = l.1 then
+      cases Fin.eq_of_val_eq hil
+      have hkj : k.1 < j.1 := Nat.lt_trans hlt h
+      simp only [Ne.symm <| Nat.ne_of_lt hkj, if_neg, if_pos] at hinv
+      exact Nat.lt_asymm hkj hinv
+    else
+      simp only [hjk, hil, if_neg] at hinv
+      exact Nat.lt_asymm hlt hinv
+
+
+@[simp]
+theorem Inversion.eq_transpos_adj {i : Nat} {h : i+1 < n} (iv : Inversion (transposAdj i h)) : iv = transposInversion ⟨i, Nat.lt_of_succ_lt h⟩ ⟨i+1,h⟩ i.lt_succ_self := by
+  cases iv.fst_eq_or_snd_eq_of_transpos i.lt_succ_self
+  <;> cases iv <;> rename_i k l hlt hinv heq <;> cases heq
+  <;> simp only [transposAdj, get_transpos, if_pos] at hinv
+  . simp only [i.succ_ne_self, Nat.ne_of_lt (a:=i) (b:=l.1) hlt, if_neg] at hinv
+    if hil : i+1 = l.1 then
+      have : ⟨i+1,h⟩ = l := Fin.eq_of_val_eq hil
+      cases this; rfl
+    else
+      exfalso
+      conv at hinv => simp only [hil, if_neg]; change i+1 > l.1
+      exact Nat.not_le_of_lt hinv hlt
+  . simp only [Ne.symm <| Nat.ne_of_lt (a:=k.1) (b:=i+1) hlt, if_neg] at hinv
+    if hik : i = k.1 then
+      have : ⟨i, Nat.lt_of_succ_lt h⟩ = k := Fin.eq_of_val_eq hik
+      cases this; rfl
+    else
+      exfalso
+      conv at hinv => simp only [hik, if_neg]; change k.1 > i
+      exact Nat.not_le_of_lt hlt hinv
+
+instance (i : Nat) (h : i+1 < n) : Subsingleton (Inversion (transposAdj i h)) where
+  allEq iv iv' :=
+    suffices ∀ iv, iv = transposInversion ⟨i, Nat.lt_of_succ_lt h⟩ ⟨i+1,h⟩ i.lt_succ_self
+    from (this iv).trans (this iv').symm
+    Inversion.eq_transpos_adj
+
+@[simp]
+theorem inversionNum_transposAdj (i : Nat) (h : i+1 < n) : inversionNum (transposAdj i h) = 1 := by
+  rewrite [inversionNum_eq_card_inversion]
+  refine Nat.le_antisymm ?le ?ge
+  . exact BishopFin.card_subsingleton
+  . exact BishopFin.card_nonempty
+
 end Permutation

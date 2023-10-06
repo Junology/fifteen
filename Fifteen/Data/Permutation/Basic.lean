@@ -343,6 +343,16 @@ theorem mul_right_cancel {x y z : Permutation n} (h : x * z = y * z) : x = y := 
     dsimp; simp only [mul_assoc, mul_inv, mul_one]
   exact this
 
+theorem mul_inv_eq_of_eq_mul {x y z : Permutation n} (h : x = z * y) : x * y.inv = z := by
+  have := congrArg (· * y.inv) h
+  conv at this => dsimp; rewrite [mul_assoc, mul_inv, mul_one]
+  exact this
+
+theorem inv_mul_eq_of_mul_eq {x y z : Permutation n} (h : y * x = z) : x = y.inv * z := by
+  have := congrArg (y.inv * ·) h
+  conv at this => dsimp; rewrite [← mul_assoc, inv_mul, one_mul]
+  exact this
+
 theorem eq_inv_of_mul_eq_left (x y : Permutation n) (h : x * y = 1) : y = x.inv := by
   have := congrArg (x.inv * ·) h
   conv at this =>
@@ -369,6 +379,9 @@ theorem get_swap (x : Permutation n) (i j : Fin n) (k : Nat) {hk : k < n} : (x.s
   show (x.val.swap _ _)[k]'_ = _ by
     simp only [Array.getElem_swap, Fin.cast]; rfl
 
+theorem swap_comm (x : Permutation n) (i j : Fin n) : x.swap i j = x.swap j i :=
+  Permutation.eq _ _ <| Array.swap_comm ..
+
 theorem swap_swap_same (x :Permutation n) (i j : Fin n) : (x.swap i j).swap i j = x :=
   ext _ _ fun k hk => by
     simp only [get_swap, if_pos]
@@ -380,6 +393,9 @@ theorem swap_swap_same (x :Permutation n) (i j : Fin n) : (x.swap i j).swap i j 
 @[inline]
 def transpos (i j : Fin n) : Permutation n :=
   swap 1 i j
+
+theorem transpos_comm (i j : Fin n) : transpos i j = transpos j i :=
+  swap_comm 1 i j
 
 theorem get_transpos (i j : Fin n) (k : Nat) {hk : k < n} : (transpos i j)[k] = if j.1 = k then i else if i.1 = k then j else ⟨k,hk⟩ := by
   simp only [transpos, get_swap, get_one]
@@ -403,6 +419,44 @@ theorem transpos_mul_transpos_same (i j : Fin n) : transpos i j * transpos i j =
 @[simp]
 theorem inv_transpos (i j : Fin n) : (transpos i j).inv = transpos i j :=
   Eq.symm <| eq_inv_of_mul_eq_left _ _ <| transpos_mul_transpos_same i j
+
+/-- Any conjugate of a transposition is again a transposition. -/
+theorem transpos_conj (i j : Fin n) (x : Permutation n) : x * transpos i j * x.inv = transpos x[i.1] x[j.1] :=
+  mul_inv_eq_of_eq_mul <| ext _ _ fun k hk => by
+    simp only [get_mul, get_transpos]
+    if hjk : j.1 = k then
+      cases hjk; simp only [if_pos]
+    else
+      have : x[j.1].1 ≠ x[k].1 :=
+        fun h => hjk <| x.get_inj _ _ (Fin.eq_of_val_eq h)
+      simp only [hjk, this, if_neg]
+      if hik : i.1 = k then
+        cases hik; simp only [if_pos]
+      else
+        have : x[i.1].1 ≠ x[k].1 :=
+          fun h => hik <| x.get_inj _ _ (Fin.eq_of_val_eq h)
+        simp only [hik, this, if_neg]
+
+/-- Adjacent transposition; i.e. a transposition of consecutive numbers -/
+@[inline]
+def transposAdj (i : Nat) (h : i+1 < n) : Permutation n :=
+  transpos ⟨i, Nat.lt_of_succ_lt h⟩ ⟨i+1,h⟩
+
+@[simp]
+theorem get_transposAdj_self {i : Nat} {h : i+1 < n} {h' : i < n} : (transposAdj i h)[i]'h' = ⟨i+1,h⟩ := by
+  simp only [transposAdj, get_transpos, i.succ_ne_self, if_neg, if_pos]
+
+@[simp]
+theorem get_transAdj_succ {i : Nat} {h : i+1 < n} : (transposAdj i h)[i+1] = ⟨i,Nat.lt_of_succ_lt h⟩ := by
+  simp only [transposAdj, get_transpos, if_pos]
+
+theorem get_transposAdj_of_lt {i : Nat} {h : i+1 < n} {j : Nat} (hj : j < i) {hj' : j < n} : (transposAdj i h)[j]'hj' = ⟨j,hj'⟩ := by
+  simp only [transposAdj, get_transpos]
+  simp only [Nat.ne_of_gt <| .step hj, Nat.ne_of_gt hj, if_neg]
+
+theorem get_transposAdj_of_gt {i : Nat} {h : i+1 < n} {j : Nat} {hj : j > i+1} {hj' : j < n} : (transposAdj i h)[j]'hj' = ⟨j,hj'⟩ := by
+  simp only [transposAdj, get_transpos]
+  simp only [Nat.ne_of_lt hj, Nat.ne_of_lt <| Nat.lt_of_succ_lt hj, if_neg]
 
 
 /-! ### Cyclic permutation -/
