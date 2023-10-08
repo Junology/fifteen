@@ -22,6 +22,12 @@ namespace List
 
 variable {α : Type u} {β : Type v}
 
+/-! ### Misc -/
+
+theorem toArray_eq_array_mk (l : List α) : l.toArray = Array.mk l :=
+  Array.ext' <| Array.data_toArray l
+
+
 /-! ### Lemmas about length -/
 
 theorem length_pmap {p : α → Prop} (f : (a : α) → p a → β) (l : List α) (h : ∀ a, a ∈ l → p a) : (l.pmap f h).length = l.length := by

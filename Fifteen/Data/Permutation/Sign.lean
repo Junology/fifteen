@@ -112,4 +112,21 @@ theorem sign_swap (x : Permutation n) (i j : Fin n) (h : i ≠ j) : (x.swap i j)
   rewrite [← mul_transpose_eq_swap, sign_mul, sign_transpos i j h]
   exact Bool.bne_true _
 
+/-- The sign of the cyclic permutation defined by a non-empty list, say `(i :: l) : List (Fin n)`, equals the parity of the length of the tail `l` provided `i ∉ l`. -/
+theorem sign_cyclic_cons {n : Nat} {i : Fin n} {l : List (Fin n)} (h : i ∉ l) : (cyclic (i :: l)).sign = (l.length % 2 == 1) := by
+  dsimp [cyclic]
+  induction l with
+  | nil => exact sign_one
+  | cons j l IH =>
+    dsimp
+    rewrite [List.mem_cons, not_or] at h
+    rewrite [sign_swap _ i j h.1, IH h.2, Bool.eq_iff_iff]
+    conv =>
+      lhs; rewrite [Nat.not_beq_eq_true_eq]
+    conv =>
+      rhs; rewrite [beq_iff_eq, Nat.succ_eq_add_one, Nat.add_mod]
+      change (l.length % 2 + 1) % 2 = 1
+    cases l.length.mod_two_eq_zero_or_one
+    all_goals (rename_i h; simp only [h])
+
 end Permutation
