@@ -206,6 +206,51 @@ theorem toFun_toFun_inv (x : Permutation n) (i : Fin n) : x.toFun (x.inv.toFun i
   simp only [inv, toFun_ofFn]
   exact Fin.invOfInj_right ..
 
+
+/-! ### Declarations about `Permutation.restriction` -/
+
+/--
+Restrict a permutation `x : Permutation n` to `Fin m` provided `m ≤ n` and the support of `x` lies in `Fin m` under the canonical embedding `Fin.castLE`.
+
+:::note warn
+The function depends on `Classical.choice` because of `Array.getElem_pmap`.
+:::
+-/
+@[inline]
+def restrict {m : Nat} (hle : m ≤ n) (x : Permutation n) (h : ∀ (i : Fin n), m ≤ i → x[i.1] = i) : Permutation m where
+  val := (x.val.shrink m).pmap (p := fun i => i.1 < m)
+    (fun i hi => ⟨i.1,hi⟩)
+    fun i hi => by
+      dsimp
+      rewrite [x.val.getElem_shrink (x.size_eq.symm ▸ hle)]
+      apply Decidable.by_contra
+      simp only [Nat.not_lt]
+      intro hm
+      rewrite [x.val.size_shrink (x.size_eq.symm ▸ hle)] at hi
+      have hin : i < n := trans hi hle
+      have : x[i]'hin = i := x.get_inj (x[i]'hin) i (h (x[i]'hin) hm)
+      rw [← Nat.not_lt] at hm
+      exact hm (trans this hi)
+  size_eq := by
+    simp only [Array.size_pmap, x.val.size_shrink (x.size_eq.symm ▸ hle)]
+  nodup := by
+    apply Array.nodup_of_get_inj
+    intro i j hi hj
+    simp only [Array.getElem_pmap]
+    intro hx
+    conv at hi =>
+      simp only [Array.size_pmap, x.val.size_shrink (x.size_eq.symm ▸ hle)]
+    conv at hj =>
+      simp only [Array.size_pmap, x.val.size_shrink (x.size_eq.symm ▸ hle)]
+    have := congrArg Fin.val hx
+    conv at this =>
+      simp only [x.val.getElem_shrink (x.size_eq.symm ▸ hle)]
+      change (x[i]'(trans (r:=LT.lt (α:=Nat)) hi hle)).1 = (x[j]'(trans (r:=LT.lt (α:=Nat)) hj hle)).1
+    exact x.get_inj i j <| Fin.eq_of_val_eq this
+
+
+/-! ### Declarations about `Permutation.castAdd` -/
+
 /--
 `Permutation.castAdd x` embeds the permutation `x : Permutation n` on `Fin n` into one on `Fin (n+m)`.
 

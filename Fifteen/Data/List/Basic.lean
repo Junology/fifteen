@@ -27,6 +27,14 @@ variable {α : Type u} {β : Type v}
 theorem toArray_eq_array_mk (l : List α) : l.toArray = Array.mk l :=
   Array.ext' <| Array.data_toArray l
 
+theorem dropLast_eq_take (l : List α) : l.dropLast = l.take (l.length - 1) :=
+  l.rec rfl fun
+  | _, [], _ => rfl
+  | a, (_ :: _), IH => congrArg (a :: ·) IH
+
+theorem get_take (l : List α) (n i : Nat) {hi : i < (l.take n).length} {hi' : i < l.length} : get (l.take n) ⟨i,hi⟩ = l.get ⟨i,hi'⟩ := by
+  rw [get_of_eq (l.take_append_drop n).symm, get_append_left]
+
 
 /-! ### Lemmas about length -/
 
