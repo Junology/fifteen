@@ -21,6 +21,15 @@ namespace Nat
 theorem sub_le_self (m n : Nat) : m - n ≤ m :=
   sub_le_of_le_add <| m.le_add_right n
 
+theorem add_mul_lt_mul {m n i j : Nat} (hi : i < m) (hj : j < n) : i + m*j < m*n :=
+  calc i + m*j
+    _ < m + m*j := Nat.add_lt_add_right hi (m*j)
+    _ = m*(j+1) := Nat.add_comm m (m*j) ▸ (m.mul_succ j).symm
+    _ ≤ m*n := Nat.mul_le_mul_left m hj
+
+theorem lt_iff_sub_pos {m n : Nat} : m < n ↔ 0 < n - m :=
+  ⟨Nat.sub_pos_of_lt, fun h => m.zero_add ▸ Nat.add_lt_of_lt_sub h⟩
+
 @[elab_as_elim]
 theorem decreasing_induction {motive : Nat → Prop} (succ : ∀ n, motive (n+1) → motive n) {m n : Nat} (beg : motive n) (h : m ≤ n) : motive m := by
   induction h with

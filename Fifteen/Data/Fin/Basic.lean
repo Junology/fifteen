@@ -7,6 +7,7 @@ import Std.Data.List.Lemmas
 import Std.Data.Fin.Lemmas
 
 import Fifteen.Data.List.Basic
+import Fifteen.Data.Nat.Basic
 
 /-!
 # Auxiliary lemmas about `Fin`
@@ -75,6 +76,57 @@ theorem list_length_le_of_nodup {l : List (Fin n)} (nodup : l.Nodup) : l.length 
       cases hl'; rewrite [List.length_map]
       refine trans (IH ?_) (n.le_succ)
       exact List.nodup_of_nodup_map nodup
+
+
+/-!
+### Declarations about `Fin.lexProd`
+-/
+/--
+Fold the product `Fin m × Fin n` into `Fin (m*n)` in the reverse-lexicographical order; i.e. `(i,j) ↦ i + m*j`.
+-/
+def rlexProd {m n : Nat} (i : Fin m) (j : Fin n) : Fin (m*n) :=
+  .mk (i.1 + m*j.1) <| Nat.add_mul_lt_mul i.2 j.2
+
+theorem rlexProd_val_div {m n : Nat} {i : Fin m} {j : Fin n} : (rlexProd i j).1 / m = j.1 := by
+  dsimp [rlexProd]
+  rewrite [Nat.add_mul_div_left _ _ i.pos, Nat.div_eq_of_lt i.2]
+  exact j.1.zero_add
+
+theorem rlexProd_val_mod {m n : Nat} {i : Fin m} {j : Fin n} : (rlexProd i j).1 % m = i.1 := by
+  dsimp [rlexProd]
+  rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt i.2]
+
+theorem rlexProd_inj {m n : Nat} {i₁ i₂ : Fin m} {j₁ j₂ : Fin n} (h : rlexProd i₁ j₁ = rlexProd i₂ j₂) : i₁ = i₂ ∧ j₁ = j₂ := by
+  constructor <;> ext
+  . rw [← rlexProd_val_mod (i:=i₁) (j:=j₁), ← rlexProd_val_mod (i:=i₂) (j:= j₂), h]
+  . rw [← rlexProd_val_div (i:=i₁) (j:=j₁), ← rlexProd_val_div (i:=i₂) (j:= j₂), h]
+
+theorem rlexProd_lt_of_snd {m n : Nat} (i₁ i₂ : Fin m) {j₁ j₂ : Fin n} (h : j₁ < j₂) : rlexProd i₁ j₁ < rlexProd i₂ j₂ := by
+  calc i₁.1 + m * j₁.1
+    _ < m + m * j₁.1 := Nat.add_lt_add_right i₁.2 _
+    _ = m * (j₁.1 + 1) := by rewrite [Nat.add_comm m]; rfl
+    _ ≤ m * j₂.1 := Nat.mul_le_mul_left m h
+    _ ≤ i₂.1 + m * j₂.1 := Nat.le_add_left ..
+
+theorem rlexProd_lt_iff {m n : Nat} {i₁ i₂ : Fin m} {j₁ j₂ : Fin n} : rlexProd i₁ j₁ < rlexProd i₂ j₂ ↔ (j₁ < j₂ ∨ j₁ = j₂ ∧ i₁ < i₂) := by
+  dsimp [rlexProd]; simp only [Fin.lt_def]
+  if hj : j₁.1 < j₂.1 then
+    simp only [hj, true_or, iff_true]
+    exact rlexProd_lt_of_snd i₁ i₂ hj
+  else
+    simp only [hj, false_or]
+    rewrite [Nat.not_lt] at hj
+    cases Nat.eq_or_lt_of_le hj with
+    | inl heq =>
+      cases Fin.eq_of_val_eq heq
+      simp only [true_and]
+      exact Nat.add_lt_add_iff_right _ i₁.1 i₂.1
+    | inr hlt =>
+      have : j₁ ≠ j₂ := fun h =>
+        Nat.lt_irrefl _ (h ▸ hlt)
+      simp only [this, false_and, iff_false, Nat.not_lt]
+      apply Nat.le_of_lt
+      exact rlexProd_lt_of_snd i₂ i₁ hlt
 
 
 /-! ### Declarations about `Fin.invOfInj` -/
