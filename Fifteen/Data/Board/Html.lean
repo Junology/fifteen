@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 -/
 
 import ProofWidgets.Component.HtmlDisplay
-import ProofWidgets.Demos.InteractiveSvg
 
 import Fifteen.Data.Board.Basic
 
