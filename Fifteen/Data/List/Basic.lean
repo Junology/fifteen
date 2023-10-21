@@ -5,6 +5,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 
 import Std.Data.List.Lemmas
 import Std.Data.List.Count
+import Std.Data.Array.Lemmas
 import Std.Data.Fin.Basic
 
 import Fifteen.Logic.Basic
@@ -38,6 +39,7 @@ theorem get_take (l : List α) (n i : Nat) {hi : i < (l.take n).length} {hi' : i
 
 /-! ### Lemmas about length -/
 
+@[simp]
 theorem length_pmap {p : α → Prop} (f : (a : α) → p a → β) (l : List α) (h : ∀ a, a ∈ l → p a) : (l.pmap f h).length = l.length := by
   induction l with
   | nil => rfl
@@ -349,5 +351,32 @@ theorem countP_mono_right [DecidableEq α] {p : α → Bool} {l l' : List α} (h
     refine trans (s:=Eq) (Nat.succ_le_succ IH) ?_
     refine Eq.symm <| countP_erase_true ?_ hpa
     exact (cons_subset.mp hsub).1
+
+
+/-! ### Lemmas about `List.ofFn` -/
+
+@[simp]
+theorem length_ofFn {n : Nat} (f : Fin n → α) : (List.ofFn f).length = n := by
+  dsimp [ofFn]; rewrite [Array.toList_eq]
+  show (Array.ofFn f).size = n
+  exact Array.size_ofFn f
+
+@[simp]
+theorem get_ofFn {n : Nat} (f : Fin n → α) (i : Fin (List.ofFn f).length) : (List.ofFn f).get i = f (i.cast <| length_ofFn f) := by
+  rcases i with ⟨i,hi⟩; dsimp [ofFn] at hi ⊢
+  simp only [get_of_eq (Array.toList_eq _), ← Array.getElem_eq_data_get]
+  conv at hi => rewrite [Array.toList_eq]
+  exact Array.getElem_ofFn f i hi
+
+@[simp]
+theorem mem_ofFn {n : Nat} {f : Fin n → α} {a : α} : a ∈ ofFn f ↔ ∃ (i : Fin n), f i = a := by
+  rewrite [List.mem_iff_get]
+  simp only [get_ofFn]
+  constructor
+  . rintro ⟨⟨i,hi⟩,ha⟩
+    simp only [length_ofFn] at hi
+    exact ⟨⟨i,hi⟩, ha⟩
+  . rintro ⟨⟨i,hi⟩,ha⟩
+    exists ⟨i, by rewrite [length_ofFn]; exact hi⟩
 
 end List

@@ -9,6 +9,7 @@ import Fifteen.Data.Permutation.Inversion
 import Fifteen.Data.Permutation.Sign
 import Fifteen.Data.Permutation.Random
 import Fifteen.Data.Board.Basic
+import Fifteen.Data.Board.Cycle
 import Fifteen.Data.Board.Html
 
 def hello := "world"

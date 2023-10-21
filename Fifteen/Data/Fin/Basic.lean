@@ -40,6 +40,13 @@ def findOrNone {n : Nat} (p : Fin n → Prop) [inst : DecidablePred p] : Subtype
           | inl heq => cases heq; exact hn
           | inr hlt => exact IH ⟨i,hlt⟩
 
+def restrict (i : Fin m) (hi : i.1 < n) : Fin n :=
+  ⟨i.1,hi⟩
+
+theorem restrict_inj (i j : Fin m) {hi : i.1 < n} {hj : j.1 < n} (h : restrict i hi = restrict j hj) : i = j := by
+  rcases i with ⟨i,hi'⟩; rcases j with ⟨j,hj'⟩
+  cases h; rfl
+
 theorem restrict_of_not_mem_last {l : List (Fin (n+1))} (h : Fin.last n ∉ l) : ∃ l' : List (Fin n), l = l'.map Fin.castSucc := by
   refine .intro (l.pmap (fun i (hi : i.1 < n) => ⟨i.1,hi⟩) ?_) ?_
   . intro i hi
@@ -78,37 +85,51 @@ theorem list_length_le_of_nodup {l : List (Fin n)} (nodup : l.Nodup) : l.length 
       exact List.nodup_of_nodup_map nodup
 
 
-/-!
-### Declarations about `Fin.lexProd`
--/
+/-!  ### Casts -/
+
+/-- Add two numbers along with the bounds. -/
+def eadd (i : Fin m) (j : Fin n) : Fin (m+n) :=
+  ⟨i.1+j.1, Nat.add_lt_add i.2 j.2⟩
+
+@[simp]
+theorem val_eadd (i : Fin m) (j : Fin n) : (i.eadd j).1 = i.1 + j.1 :=
+  rfl
+
+
+/-!  ### Declarations about `Fin.lexProd` -/
+
 /--
 Fold the product `Fin m × Fin n` into `Fin (m*n)` in the reverse-lexicographical order; i.e. `(i,j) ↦ i + m*j`.
 -/
-def rlexProd {m n : Nat} (i : Fin m) (j : Fin n) : Fin (m*n) :=
+def rlexProd (i : Fin m) (j : Fin n) : Fin (m*n) :=
   .mk (i.1 + m*j.1) <| Nat.add_mul_lt_mul i.2 j.2
 
-theorem rlexProd_val_div {m n : Nat} {i : Fin m} {j : Fin n} : (rlexProd i j).1 / m = j.1 := by
+@[simp]
+theorem val_rlexProd (i : Fin m) (j : Fin n) : (rlexProd i j).1 = i.1 + m*j.1 :=
+  rfl
+
+theorem rlexProd_val_div {i : Fin m} {j : Fin n} : (rlexProd i j).1 / m = j.1 := by
   dsimp [rlexProd]
   rewrite [Nat.add_mul_div_left _ _ i.pos, Nat.div_eq_of_lt i.2]
   exact j.1.zero_add
 
-theorem rlexProd_val_mod {m n : Nat} {i : Fin m} {j : Fin n} : (rlexProd i j).1 % m = i.1 := by
+theorem rlexProd_val_mod {i : Fin m} {j : Fin n} : (rlexProd i j).1 % m = i.1 := by
   dsimp [rlexProd]
   rw [Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt i.2]
 
-theorem rlexProd_inj {m n : Nat} {i₁ i₂ : Fin m} {j₁ j₂ : Fin n} (h : rlexProd i₁ j₁ = rlexProd i₂ j₂) : i₁ = i₂ ∧ j₁ = j₂ := by
+theorem rlexProd_inj {i₁ i₂ : Fin m} {j₁ j₂ : Fin n} (h : rlexProd i₁ j₁ = rlexProd i₂ j₂) : i₁ = i₂ ∧ j₁ = j₂ := by
   constructor <;> ext
   . rw [← rlexProd_val_mod (i:=i₁) (j:=j₁), ← rlexProd_val_mod (i:=i₂) (j:= j₂), h]
   . rw [← rlexProd_val_div (i:=i₁) (j:=j₁), ← rlexProd_val_div (i:=i₂) (j:= j₂), h]
 
-theorem rlexProd_lt_of_snd {m n : Nat} (i₁ i₂ : Fin m) {j₁ j₂ : Fin n} (h : j₁ < j₂) : rlexProd i₁ j₁ < rlexProd i₂ j₂ := by
+theorem rlexProd_lt_of_snd (i₁ i₂ : Fin m) {j₁ j₂ : Fin n} (h : j₁ < j₂) : rlexProd i₁ j₁ < rlexProd i₂ j₂ := by
   calc i₁.1 + m * j₁.1
     _ < m + m * j₁.1 := Nat.add_lt_add_right i₁.2 _
     _ = m * (j₁.1 + 1) := by rewrite [Nat.add_comm m]; rfl
     _ ≤ m * j₂.1 := Nat.mul_le_mul_left m h
     _ ≤ i₂.1 + m * j₂.1 := Nat.le_add_left ..
 
-theorem rlexProd_lt_iff {m n : Nat} {i₁ i₂ : Fin m} {j₁ j₂ : Fin n} : rlexProd i₁ j₁ < rlexProd i₂ j₂ ↔ (j₁ < j₂ ∨ j₁ = j₂ ∧ i₁ < i₂) := by
+theorem rlexProd_lt_iff {i₁ i₂ : Fin m} {j₁ j₂ : Fin n} : rlexProd i₁ j₁ < rlexProd i₂ j₂ ↔ (j₁ < j₂ ∨ j₁ = j₂ ∧ i₁ < i₂) := by
   dsimp [rlexProd]; simp only [Fin.lt_def]
   if hj : j₁.1 < j₂.1 then
     simp only [hj, true_or, iff_true]
