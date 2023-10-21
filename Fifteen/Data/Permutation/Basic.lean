@@ -410,6 +410,35 @@ theorem eq_inv_of_mul_eq_right (x y : Permutation n) (h : x * y = 1) : x = y.inv
     dsimp; rewrite [mul_assoc, mul_inv, one_mul, mul_one]
   exact this
 
+instance powNat : Pow (Permutation n) Nat where
+  pow x k :=
+    let rec go : Nat → Permutation n
+    | 0 => 1
+    | (k+1) => x * go k
+    go k
+
+@[simp]
+theorem powNat_zero (x : Permutation n) : x^0 = 1 :=
+  rfl
+
+@[simp]
+theorem powNat_succ (x : Permutation n) (k : Nat) : x^(k+1) = x * x^k :=
+  rfl
+
+@[simp]
+theorem powNat_add (x : Permutation n) (k l : Nat) : x^(k+l) = x^k * x^l := by
+  induction k with
+  | zero =>
+    simp only [Nat.zero_eq, Nat.zero_add, powNat_zero, one_mul]
+  | succ k IH =>
+    simp only [Nat.succ_add, powNat_succ]
+    rw [mul_assoc, IH]
+
+instance powInt : Pow (Permutation n) Int where
+  pow x k := match k with
+    | .ofNat k => x^k
+    | .negSucc k => x.inv ^ (k+1)
+
 
 /-! ### Transpositions -/
 

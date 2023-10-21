@@ -76,6 +76,22 @@ theorem sign_inv (x : Permutation n) : x.inv.sign = x.sign := by
     rewrite [Bool.bne_eq_false]
   exact this
 
+theorem sign_powNat_of_even (x : Permutation n) (k : Nat) (h : x.sign = false) : (x^k).sign = false := by
+  induction k with
+  | zero => rw [powNat_zero, sign_one]
+  | succ k IH =>
+    rewrite [powNat_succ, sign_mul, h, IH]
+    decide
+
+theorem sign_powInt_of_even (x : Permutation n) (k : Int) (h : x.sign = false) : (x^k).sign = false := by
+  rcases k with ⟨k⟩ | ⟨k⟩
+  . show sign (x ^ (k : Nat)) = false
+    exact sign_powNat_of_even x k h
+  . show sign (x.inv ^ (k+1 : Nat)) = false
+    apply sign_powNat_of_even
+    rewrite [x.sign_inv]
+    exact h
+
 @[simp]
 theorem sign_conj (x y : Permutation n) : (x * y * x.inv).sign = y.sign := by
   simp only [sign_mul]
