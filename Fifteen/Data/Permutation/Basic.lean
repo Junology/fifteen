@@ -520,6 +520,24 @@ def cyclic (l : List (Fin n)) : Permutation n :=
   | [] => 1
   | (i :: l) => l.foldr (fun j x => x.swap i j) 1
 
+theorem get_cyclic_not_mem (l : List (Fin n)) (i : Fin n) (h : i ∉ l) : (cyclic l)[i.1] = i := by
+  cases l with
+  | nil => exact get_one i.1
+  | cons j l =>
+    dsimp [cyclic]
+    simp only [List.mem_cons, not_or] at h
+    suffices ∀ (y : Permutation n), (l.foldr _ y)[i.1] = y[i.1] by
+      rewrite [this 1]; exact get_one i.1
+    induction l with
+    | nil => intros; rfl
+    | cons k l IH =>
+      intro y
+      simp only [List.mem_cons, not_or] at h 
+      specialize IH ⟨h.1,h.2.2⟩ y
+      dsimp only [List.foldr]
+      rewrite [get_swap, if_neg (Fin.val_ne_of_ne <| Ne.symm h.2.1), if_neg (Fin.val_ne_of_ne <| Ne.symm h.1)]
+      exact IH
+
 
 /-! ### Order reversion -/
 
